@@ -10,7 +10,7 @@ from model import Config, Transformer
 # -----------------------------------------------------------------------------
 # I/O
 out_dir = 'checkpoints'
-eval_interval = 1
+eval_interval = 250
 log_interval = 10
 eval_iters = 20
 eval_only = False # if True, script exits right after the first eval
