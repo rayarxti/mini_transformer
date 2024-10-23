@@ -18,7 +18,7 @@ class Config:
 
 class SelfAttention(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config: Config):
         super().__init__()
         assert config.n_embd % config.n_head == 0, "The number of heads must evenly divide the embedding dimension."
         self.n_head = config.n_head
@@ -36,33 +36,36 @@ class SelfAttention(nn.Module):
 
     def forward(self, x):
         B, L, C = x.size() 
+        H = self.n_head
         
-        # retrive the Q, K, V layers from self.c_attn(x) 
-        Q, K, V = ..., ..., ...
+        # retrive the Q, K, V layers from self.c_attn(x)
+        QKV = self.c_attn(x) 
+        Q, K, V = QKV[:,:,:C], QKV[:,:,C:2*C], QKV[:,:,2*C:]
         # implement getting the multihead attention layers
-        K = ...
-        Q = ...
-        V = ...
+        K = K.view(B, L, H, C // H).transpose(1, 2)
+        Q = Q.view(B, L, H, C // H).transpose(1, 2)
+        V = V.view(B, L, H, C // H).transpose(1, 2)
         # These conditions should be true. 
-        # assert(k.shape == torch.tensor.Size([B, self.n_head, L, C // self.n_head]) )
+        assert(K.shape == torch.Size([B, self.n_head, L, C // self.n_head]) )
         # manual implementation of attention 
         # Interact queries and keys, scale it by the embedding dimension  
-        att = ...
+        att = torch.matmul(Q, K.transpose(2, 3)) / math.sqrt(C // H)
         # Mask it 
-        att = ... 
+        mask = torch.tril(torch.ones(L, L)).view(1, 1, L, L)
+        att = att.masked_fill(~mask.to(torch.bool), -torch.inf) 
         # Apply softmax 
-        att = ...
+        att = F.softmax(att, dim=-1)
         # We have implemented a dropout layer for you. Uncomment it after you are finished. 
-        # att = self.attn_dropout(att) 
+        att = self.attn_dropout(att) 
         # have it interact with the value keys 
-        y = ...
-        # assert(y.shape == torch.tensor.size([B, self.n_heads, L, C // self.n_heads]))
+        y = torch.matmul(att, V)
+        assert(y.shape == torch.Size([B, self.n_head, L, C // self.n_head]))
         # re-assemble all head outputs side by side. Uncomment when you are finished. 
-        # y = y.transpose(1, 2).contiguous().view(B, L, C) 
+        y = y.transpose(1, 2).contiguous().view(B, L, C) 
         # output projection. Uncomment when you are finished. 
-        # y = self.resid_dropout(self.c_proj(y))
+        y = self.resid_dropout(self.c_proj(y))
         # modify the return statement to output y
-        return torch.randn_like(x)
+        return y # torch.randn_like(x)
 
 class MLP(nn.Module):
 
@@ -96,7 +99,7 @@ class AttentionBlock(nn.Module):
 
 class Transformer(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config: Config):
         super().__init__()
         assert config.vocab_size is not None
         assert config.block_size is not None
